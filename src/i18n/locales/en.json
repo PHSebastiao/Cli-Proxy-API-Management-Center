@@ -2253,5 +2253,17 @@
       "p95": "p95 latency",
       "milliseconds": "{{value}} ms"
     }
+  },
+  "opencode_go_quota": {
+    "title": "OpenCode Go",
+    "badge": "Go plan",
+    "rolling": "Rolling (5h)",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "refresh": "Refresh Go usage",
+    "loading": "Loading Go usage",
+    "idle": "Check Go usage",
+    "checked": "checked {{time}}",
+    "error": "Could not load Go usage: {{message}}"
   }
 }

@@ -45,6 +45,7 @@ import { QUOTA_ADAPTERS, getQuotaMap, type QuotaCardState } from './providers';
 import type { QuotaProviderType } from './providers/types';
 import { useQuotaActions } from './hooks/useQuotaActions';
 import { useQuotaBatchLoader } from './hooks/useQuotaBatchLoader';
+import { OpenCodeGoQuotaCard } from './opencodeGo/OpenCodeGoQuotaCard';
 import { readQuotaUiState, writeQuotaUiState } from './uiState';
 import styles from './QuotaPage.module.scss';
 
@@ -394,6 +395,7 @@ function QuotaPageContent({ sessionGeneration }: { sessionGeneration: number }) 
                 ...checkResult,
               })}
       </p>
+      <OpenCodeGoQuotaCard />
       <section className={styles.workbench}>
         <details className={styles.filters}>
           <summary>{t('redesign.quota.filters')}</summary>
