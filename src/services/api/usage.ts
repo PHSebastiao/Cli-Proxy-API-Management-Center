@@ -33,13 +33,13 @@ let usageSnapshotMissing = false;
 
 export const usageApi = {
   getUsage: async (): Promise<UsageResponse> => {
-    if (usageSnapshotMissing) return { statistics_enabled: false };
+    if (usageSnapshotMissing) return { statistics_enabled: false, unsupported: true };
     try {
       return await apiClient.get<UsageResponse>('/usage', { timeout: USAGE_TIMEOUT_MS });
     } catch (error: unknown) {
       if (!isNotFound(error)) throw error;
       usageSnapshotMissing = true;
-      return { statistics_enabled: false };
+      return { statistics_enabled: false, unsupported: true };
     }
   },
   /**

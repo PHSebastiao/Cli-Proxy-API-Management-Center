@@ -56,6 +56,7 @@ const render = (overrides: Partial<Props> = {}) =>
         createElement(UsagePageContent, {
           payload,
           enabled: true,
+          unsupported: false,
           loading: false,
           error: null,
           lastUpdated: now,
@@ -76,6 +77,14 @@ describe('Usage production states', () => {
     expect(markup).not.toContain('<dl');
     expect(markup).not.toContain('<table');
     expect(markup).not.toContain('fixture-model');
+  });
+
+  test('v8 unsupported state explains the removed endpoint without offering config', () => {
+    const markup = render({ unsupported: true, enabled: null });
+    expect(markup).toContain('data-usage-state="unsupported"');
+    expect(markup).toContain('Usage history is unavailable on CLIProxyAPI v8');
+    expect(markup).not.toContain('Turn on in Config');
+    expect(markup).not.toContain('<dl');
   });
 
   test('refreshing disabled collection never reveals previously cached metrics', () => {

@@ -144,6 +144,7 @@ export function useDashboardOverview() {
       const enabled = await usageApi.getStatisticsEnabled();
       if (enabled !== true) return { enabled, usage: null };
       const response = await usageApi.getUsage();
+      if (response?.unsupported) return { enabled: null, usage: null };
       return {
         enabled: response?.statistics_enabled ?? enabled,
         usage: response?.usage ?? null,

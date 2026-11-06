@@ -24,6 +24,7 @@ const STALE_AFTER_MS = 5 * 60_000;
 interface UsagePageContentProps {
   payload: UsageResponse | null;
   enabled: boolean | null;
+  unsupported: boolean;
   loading: boolean;
   error: string | null;
   lastUpdated: number | null;
@@ -74,6 +75,7 @@ function Stat({ label, value }: { label: string; value: number | undefined }) {
 export function UsagePageContent({
   payload,
   enabled,
+  unsupported,
   loading,
   error,
   lastUpdated,
@@ -86,23 +88,28 @@ export function UsagePageContent({
   const topModels = useMemo(() => buildTopModelRows(apiRows), [apiRows]);
   const points = useMemo(() => dailyPoints(usage), [usage]);
   const ageStale = lastUpdated !== null && now - lastUpdated >= STALE_AFTER_MS;
-  const state = loading
-    ? 'loading'
-    : enabled === false
-      ? 'off'
-      : error
-        ? usage && lastUpdated !== null
-          ? 'stale'
-          : 'error'
-        : enabled === null
-          ? 'unknown'
-          : ageStale
+  const state = unsupported
+    ? 'unsupported'
+    : loading
+      ? 'loading'
+      : enabled === false
+        ? 'off'
+        : error
+          ? usage && lastUpdated !== null
             ? 'stale'
-            : usage?.total_requests === 0
-              ? 'empty'
-              : 'live';
+            : 'error'
+          : enabled === null
+            ? 'unknown'
+            : ageStale
+              ? 'stale'
+              : usage?.total_requests === 0
+                ? 'empty'
+                : 'live';
   const showData =
-    enabled !== false && Boolean(usage) && (enabled === true || state === 'stale' || loading);
+    !unsupported &&
+    enabled !== false &&
+    Boolean(usage) &&
+    (enabled === true || state === 'stale' || loading);
   const number = (value: number) => value.toLocaleString(i18n.language);
   const dateFormat = new Intl.DateTimeFormat(i18n.language, {
     year: 'numeric',
@@ -171,6 +178,12 @@ export function UsagePageContent({
           <Link className={styles.actionLink} to="/system">
             {t('redesign.usage.open_system')}
           </Link>
+        </section>
+      )}
+      {state === 'unsupported' && (
+        <section className={styles.notice} aria-labelledby="usage-unsupported-title">
+          <h2 id="usage-unsupported-title">{t('redesign.usage.unsupported_title')}</h2>
+          <p>{t('redesign.usage.unsupported_detail')}</p>
         </section>
       )}
       {state === 'error' && <p className={styles.note}>{t('redesign.usage.no_cached_data')}</p>}
@@ -368,6 +381,7 @@ export function UsagePage() {
   const serverVersion = useAuthStore((state) => state.serverVersion);
   const [payload, setPayload] = useState<UsageResponse | null>(null);
   const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [unsupported, setUnsupported] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -382,13 +396,15 @@ export function UsagePage() {
       return Promise.resolve();
     }
     if (!supportsLegacyUsage(serverVersion)) {
-      setEnabled(false);
+      setUnsupported(true);
+      setEnabled(null);
       setPayload(null);
       setLastUpdated(null);
       setError(null);
       setLoading(false);
       return Promise.resolve();
     }
+    setUnsupported(false);
     return runLatestUsageRequest({
       guard: requestGuard.current,
       request: () => fetchUsagePageSources(usageApi),
@@ -421,10 +437,13 @@ export function UsagePage() {
       },
       onSuccess: (result) => {
         const payloadValue = result.payload.status === 'fulfilled' ? result.payload.value : null;
+        const unsupportedPayload = payloadValue?.unsupported === true;
         const unavailable = payloadValue?.statistics_enabled === false;
         const enabledValue = result.enabled.status === 'fulfilled' ? result.enabled.value : null;
-        setEnabled(unavailable ? false : enabledValue);
+        setUnsupported(unsupportedPayload);
+        setEnabled(unsupportedPayload ? null : unavailable ? false : enabledValue);
         if (
+          unsupportedPayload ||
           unavailable ||
           (result.enabled.status === 'fulfilled' && result.enabled.value !== true)
         ) {
@@ -449,6 +468,7 @@ export function UsagePage() {
       guard.invalidate();
       setPayload(null);
       setEnabled(null);
+      setUnsupported(false);
       setLastUpdated(null);
       setError(null);
       setLoading(usageSessionRequestState(session) !== 'stopped');
@@ -471,6 +491,7 @@ export function UsagePage() {
     <UsagePageContent
       payload={payload}
       enabled={enabled}
+      unsupported={unsupported}
       loading={loading}
       error={error}
       lastUpdated={lastUpdated}

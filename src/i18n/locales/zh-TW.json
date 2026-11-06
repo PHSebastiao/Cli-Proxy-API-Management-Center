@@ -2239,6 +2239,7 @@
     "usage": {
       "state_loading": "正在載入使用統計…",
       "state_off": "統計收集已關閉",
+      "state_unsupported": "v8 無法顯示使用歷史",
       "state_unknown": "統計收集狀態未知",
       "state_empty": "統計收集已開啟 · 尚無請求紀錄",
       "state_live": "統計收集已開啟 · 快照已載入",
@@ -2251,6 +2252,8 @@
       "unknown_title": "此後端未回報統計收集狀態",
       "unknown_detail": "無法取得 usage-statistics-enabled 旗標，無法確認是否正在收集統計，因此隱藏總數與圖表。請在管理中心資訊中檢查後端版本。",
       "open_system": "開啟管理中心資訊",
+      "unsupported_title": "CLIProxyAPI v8 無法顯示使用歷史",
+      "unsupported_detail": "後端仍會在 usage queue 中記錄每個請求，但 v8 移除了此頁面讀取的聚合 /usage 端點。採集並未關閉；總量與圖表需要獨立的採集器。",
       "coverage": "使用統計儲存在後端記憶體中，重新啟動後清空。收集關閉期間的流量不會補錄。後端未回報統計收集的開始時間。",
       "empty_detail": "統計收集已開啟，但尚未記錄任何請求。請透過代理傳送請求，然後重新整理。",
       "no_cached_data": "沒有先前已確認的使用統計快照。請重試以載入使用統計。",

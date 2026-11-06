@@ -43,5 +43,7 @@ export interface UsageSnapshot {
 
 export interface UsageResponse {
   statistics_enabled?: boolean;
+  /** v8 removed the aggregate endpoint; collection can still be on. */
+  unsupported?: boolean;
   usage?: UsageSnapshot;
 }
