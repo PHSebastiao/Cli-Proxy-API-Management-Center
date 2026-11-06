@@ -1285,6 +1285,9 @@ export function useVisualConfig() {
       const remoteManagement = asRecord(parsed['remote-management']);
       const quotaExceeded = asRecord(parsed['quota-exceeded']);
       const routing = asRecord(parsed.routing);
+      const observability = asRecord(parsed.observability);
+      const observabilityLogs = asRecord(observability?.logs);
+      const observabilityUsage = asRecord(observability?.usage);
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
       const plugins = asRecord(parsed.plugins);
@@ -1322,14 +1325,29 @@ export function useVisualConfig() {
         pluginStoreSources: parseStringList(plugins?.['store-sources']),
         pluginStoreAuth: parsePluginStoreAuthRules(plugins?.['store-auth']),
 
-        debug: Boolean(parsed.debug),
+        debug: Boolean(observabilityLogs?.debug ?? parsed.debug),
         commercialMode: Boolean(parsed['commercial-mode']),
-        loggingToFile: Boolean(parsed['logging-to-file']),
-        logsMaxTotalSizeMb: String(parsed['logs-max-total-size-mb'] ?? ''),
-        errorLogsMaxFiles: String(parsed['error-logs-max-files'] ?? ''),
-        usageStatisticsEnabled: Boolean(parsed['usage-statistics-enabled']),
+        loggingToFile: Boolean(
+          observabilityLogs?.['logging-to-file'] ?? parsed['logging-to-file']
+        ),
+        logsMaxTotalSizeMb: String(
+          observabilityLogs?.['logs-max-total-size-mb'] ??
+            parsed['logs-max-total-size-mb'] ??
+            ''
+        ),
+        errorLogsMaxFiles: String(
+          observabilityLogs?.['error-logs-max-files'] ??
+            parsed['error-logs-max-files'] ??
+            ''
+        ),
+        usageStatisticsEnabled: Boolean(
+          observabilityUsage?.['usage-statistics-enabled'] ??
+            parsed['usage-statistics-enabled']
+        ),
         redisUsageQueueRetentionSeconds: String(
-          parsed['redis-usage-queue-retention-seconds'] ?? ''
+          observabilityUsage?.['redis-usage-queue-retention-seconds'] ??
+            parsed['redis-usage-queue-retention-seconds'] ??
+            ''
         ),
 
         proxyUrl: typeof parsed['proxy-url'] === 'string' ? parsed['proxy-url'] : '',
@@ -1436,6 +1454,20 @@ export function useVisualConfig() {
         }
         const values = visualValues;
         const shouldWritePluginStoreAuth = dirtyFields.has('pluginStoreAuth');
+        // v8 moved logging and usage under observability. Keep writing the
+        // legacy top-level keys only for older cores.
+        const useV8Layout =
+          doc.hasIn(['config-version']) || doc.hasIn(['observability']) || doc.hasIn(['server']);
+        const logPath = (key: string): string[] =>
+          useV8Layout ? ['observability', 'logs', key] : [key];
+        const usagePath = (key: string): string[] =>
+          useV8Layout ? ['observability', 'usage', key] : [key];
+        const ensureLogSection = () => {
+          if (useV8Layout) ensureMapInDoc(doc, ['observability', 'logs']);
+        };
+        const ensureUsageSection = () => {
+          if (useV8Layout) ensureMapInDoc(doc, ['observability', 'usage']);
+        };
 
         if (dirtyFields.has('host')) setStringInDoc(doc, ['host'], values.host);
         if (dirtyFields.has('port')) setIntFromStringInDoc(doc, ['port'], values.port);
@@ -1530,28 +1562,45 @@ export function useVisualConfig() {
           deleteIfMapEmpty(doc, ['plugins']);
         }
 
-        if (dirtyFields.has('debug')) setBooleanInDoc(doc, ['debug'], values.debug);
+        if (dirtyFields.has('debug')) {
+          ensureLogSection();
+          setBooleanInDoc(doc, logPath('debug'), values.debug);
+        }
         if (dirtyFields.has('commercialMode')) {
           setBooleanInDoc(doc, ['commercial-mode'], values.commercialMode);
         }
         if (dirtyFields.has('loggingToFile')) {
-          setBooleanInDoc(doc, ['logging-to-file'], values.loggingToFile);
+          ensureLogSection();
+          setBooleanInDoc(doc, logPath('logging-to-file'), values.loggingToFile);
         }
         if (dirtyFields.has('logsMaxTotalSizeMb')) {
-          setIntFromStringInDoc(doc, ['logs-max-total-size-mb'], values.logsMaxTotalSizeMb);
+          ensureLogSection();
+          setIntFromStringInDoc(doc, logPath('logs-max-total-size-mb'), values.logsMaxTotalSizeMb);
         }
         if (dirtyFields.has('errorLogsMaxFiles')) {
-          setIntFromStringInDoc(doc, ['error-logs-max-files'], values.errorLogsMaxFiles);
+          ensureLogSection();
+          setIntFromStringInDoc(doc, logPath('error-logs-max-files'), values.errorLogsMaxFiles);
         }
         if (dirtyFields.has('usageStatisticsEnabled')) {
-          setBooleanInDoc(doc, ['usage-statistics-enabled'], values.usageStatisticsEnabled);
+          ensureUsageSection();
+          setBooleanInDoc(
+            doc,
+            usagePath('usage-statistics-enabled'),
+            values.usageStatisticsEnabled
+          );
         }
         if (dirtyFields.has('redisUsageQueueRetentionSeconds')) {
+          ensureUsageSection();
           setIntFromStringInDoc(
             doc,
-            ['redis-usage-queue-retention-seconds'],
+            usagePath('redis-usage-queue-retention-seconds'),
             values.redisUsageQueueRetentionSeconds
           );
+        }
+        if (useV8Layout) {
+          deleteIfMapEmpty(doc, ['observability', 'logs']);
+          deleteIfMapEmpty(doc, ['observability', 'usage']);
+          deleteIfMapEmpty(doc, ['observability']);
         }
 
         if (dirtyFields.has('proxyUrl')) setStringInDoc(doc, ['proxy-url'], values.proxyUrl);
