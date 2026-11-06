@@ -50,6 +50,7 @@ export const fetchUsagePageSources = async (api: {
   const [enabled, payload] = await Promise.allSettled([
     api.getStatisticsEnabled(),
     api.getUsage().then((response) => {
+      if (response.statistics_enabled === false) return response;
       if (!response.usage) throw new Error('Usage snapshot missing');
       return response;
     }),

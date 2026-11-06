@@ -4,6 +4,7 @@ import {
   fetchUsagePageSources,
   runLatestUsageRequest,
 } from '../src/pages/usage-page-request-guard';
+import { supportsLegacyUsage } from '../src/services/api/usage';
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -16,6 +17,13 @@ const deferred = <T>() => {
 };
 
 describe('UsagePage request sources', () => {
+  test('skips the removed legacy usage endpoint on v8', () => {
+    expect(supportsLegacyUsage('v8.0.57')).toBe(false);
+    expect(supportsLegacyUsage('8.0.0')).toBe(false);
+    expect(supportsLegacyUsage('v7.2.1')).toBe(true);
+    expect(supportsLegacyUsage(null)).toBe(true);
+  });
+
   test('fetches the separate flag endpoint instead of relying on a flag in the usage payload', async () => {
     let flagCalls = 0;
     let usageCalls = 0;
@@ -54,6 +62,17 @@ describe('UsagePage request sources', () => {
       getUsage: async () => ({}),
     });
     expect(result.payload.status).toBe('rejected');
+  });
+
+  test('treats the removed v8 usage endpoint as a disabled snapshot', async () => {
+    const result = await fetchUsagePageSources({
+      getStatisticsEnabled: async () => true,
+      getUsage: async () => ({ statistics_enabled: false }),
+    });
+    expect(result.payload).toEqual({
+      status: 'fulfilled',
+      value: { statistics_enabled: false },
+    });
   });
 
   test('does not turn a flag request failure into unsupported status', async () => {

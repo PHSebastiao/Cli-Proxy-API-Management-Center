@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { publishAuthFilesCount } from '@/features/authFiles/authFilesEvents';
 import { useTranslation } from 'react-i18next';
-import { apiKeyUsageApi, authFilesApi, modelsApi, usageApi } from '@/services/api';
+import {
+  apiKeyUsageApi,
+  authFilesApi,
+  modelsApi,
+  supportsLegacyUsage,
+  usageApi,
+} from '@/services/api';
 import { useAuthStore, useConfigStore } from '@/stores';
 import { useApiKeysForModels } from '@/hooks/useApiKeysForModels';
 import type { Config } from '@/types';
@@ -75,6 +81,7 @@ export function useDashboardOverview() {
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
   const apiBase = useAuthStore((state) => state.apiBase);
   const managementKey = useAuthStore((state) => state.managementKey);
+  const serverVersion = useAuthStore((state) => state.serverVersion);
   const storeConfig = useConfigStore((state) => state.config);
   const fetchConfig = useConfigStore((state) => state.fetchConfig);
   const resolveApiKeysForModels = useApiKeysForModels();
@@ -130,14 +137,17 @@ export function useDashboardOverview() {
 
   const usageResource = usePolledResource<UsageSourceData>({
     scope,
-    enabled: connected,
+    enabled: connected && supportsLegacyUsage(serverVersion),
     intervalMs: DASHBOARD_POLL_MS.usage,
     timeoutMs: DASHBOARD_TIMEOUT_MS.usage,
     load: async () => {
       const enabled = await usageApi.getStatisticsEnabled();
       if (enabled !== true) return { enabled, usage: null };
       const response = await usageApi.getUsage();
-      return { enabled, usage: response?.usage ?? null };
+      return {
+        enabled: response?.statistics_enabled ?? enabled,
+        usage: response?.usage ?? null,
+      };
     },
   });
 

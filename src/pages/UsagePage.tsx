@@ -6,7 +6,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { TimeSeriesChart, type TimeSeriesPoint } from '@/components/ui/TimeSeriesChart';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
-import { usageApi } from '@/services/api';
+import { supportsLegacyUsage, usageApi } from '@/services/api';
 import { useAuthStore } from '@/stores';
 import type { UsageResponse, UsageSnapshot } from '@/types/usage';
 import { buildTopModelRows, buildUsageRows, formatLargeNumber } from '@/utils/usageStats';
@@ -365,6 +365,7 @@ export function UsagePage() {
   const managementKey = useAuthStore((state) => state.managementKey);
   const authenticated = useAuthStore((state) => state.isAuthenticated);
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
+  const serverVersion = useAuthStore((state) => state.serverVersion);
   const [payload, setPayload] = useState<UsageResponse | null>(null);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -378,6 +379,14 @@ export function UsagePage() {
     const requestState = usageSessionRequestState(session);
     if (requestState !== 'ready') {
       if (requestState === 'stopped') setLoading(false);
+      return Promise.resolve();
+    }
+    if (!supportsLegacyUsage(serverVersion)) {
+      setEnabled(false);
+      setPayload(null);
+      setLastUpdated(null);
+      setError(null);
+      setLoading(false);
       return Promise.resolve();
     }
     return runLatestUsageRequest({
@@ -411,8 +420,14 @@ export function UsagePage() {
         setError(null);
       },
       onSuccess: (result) => {
-        setEnabled(result.enabled.status === 'fulfilled' ? result.enabled.value : null);
-        if (result.enabled.status === 'fulfilled' && result.enabled.value !== true) {
+        const payloadValue = result.payload.status === 'fulfilled' ? result.payload.value : null;
+        const unavailable = payloadValue?.statistics_enabled === false;
+        const enabledValue = result.enabled.status === 'fulfilled' ? result.enabled.value : null;
+        setEnabled(unavailable ? false : enabledValue);
+        if (
+          unavailable ||
+          (result.enabled.status === 'fulfilled' && result.enabled.value !== true)
+        ) {
           setPayload(null);
           setLastUpdated(null);
         } else if (result.enabled.status === 'fulfilled' && result.payload.status === 'fulfilled') {
@@ -425,7 +440,7 @@ export function UsagePage() {
       onError: setError,
       onFinish: () => setLoading(false),
     });
-  }, [t]);
+  }, [t, serverVersion]);
 
   useEffect(() => {
     const guard = requestGuard.current;
